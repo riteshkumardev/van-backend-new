@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv'; // ✅ 1. dotenv इम्पोर्ट करें
+import dotenv from 'dotenv'; 
 import { authMiddleware } from './middlewares/authMiddleware.js';
 
 // Routes Imports
@@ -19,20 +19,22 @@ import partyRoutes from './routes/partyRoutes.js';
 // Database Connection
 import './models/index.js';
 
-// ✅ 2. dotenv को कॉन्फ़िगर करें ताकि .env फाइल से डेटा पढ़ा जा सके
+// Environment Variables लोड करें
 dotenv.config();
 
 const app = express();
 
-// Middleware
+// Middleware - CORS Setup
 const allowedOrigins = [
     "http://localhost:5173",
-    "https://vehicle-management-system-vms.vercel.app"
+    "https://vehicle-management-system-vms.vercel.app",
+    "https://van-backend-new.vercel.app" // ✅ आपकी नई backend URL
 ];
 
 app.use(
     cors({
         origin(origin, callback) {
+            // Postman या सर्वर टू सर्वर कॉल के लिए
             if (!origin) return callback(null, true);
             if (allowedOrigins.includes(origin)) {
                 return callback(null, true);
@@ -49,12 +51,15 @@ app.use(
 app.options(/.*/, cors());
 app.use(express.json());
 
-// Routes without authentication
+// --- Routes ---
+
+// 1. Routes without authentication (Public)
 app.use('/api/auth', authRoutes);
 
-// Routes with authentication
+// 2. Global Authentication Middleware
 app.use('/api', authMiddleware);
 
+// 3. Protected Routes (Auth Required)
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
@@ -66,25 +71,33 @@ app.use('/api/drivers', driverRoutes);
 app.use('/api/trips', tripRoutes);
 app.use('/api/parties', partyRoutes);
 
-// Root Redirect
+// Root Redirect (Vercel पर 404 से बचने के लिए)
 app.get("/", (req, res) => {
     res.redirect(302, "https://vehicle-management-system-vms.vercel.app/");
 });
 
 // Health Check
 app.get("/health", (req, res) => {
-    res.json({ status: "ok", environment: process.env.NODE_ENV });
+    res.json({ 
+        status: "ok", 
+        environment: process.env.NODE_ENV,
+        timestamp: new Date().toISOString()
+    });
 });
 
-// ✅ 3. सर्वर को स्टार्ट करने के लिए यह कोड जोड़ें (Local testing के लिए जरूरी)
+// Server Listen (Local Environment के लिए)
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-    console.log(`-----------------------------------------`);
-    console.log(`🚀 Dharashakti Server is running!`);
-    console.log(`📍 Port: ${PORT}`);
-    console.log(`🔗 Local: http://localhost:${PORT}`);
-    console.log(`-----------------------------------------`);
-});
+// Vercel पर डिप्लॉयमेंट के दौरान 'app.listen' को नजरअंदाज किया जा सकता है, 
+// लेकिन लोकल टेस्टिंग के लिए यह अनिवार्य है।
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => {
+        console.log(`-----------------------------------------`);
+        console.log(`🚀 Dharashakti Server is running!`);
+        console.log(`📍 Port: ${PORT}`);
+        console.log(`🔗 Local: http://localhost:${PORT}`);
+        console.log(`-----------------------------------------`);
+    });
+}
 
 export default app;
